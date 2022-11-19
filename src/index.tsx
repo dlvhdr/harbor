@@ -146,18 +146,25 @@ export default function Command() {
       {output.map((proc) => (
         <MenuBarExtra.Submenu key={proc.pid} title={`${proc.cmd} (${proc.pid})`}>
           <MenuBarExtra.Item
+            icon={Icon.Terminal}
             title={
               proc.args && proc.args.length > CMD_ARGS_MAX_LEN
                 ? proc.args.slice(0, CMD_ARGS_MAX_LEN) + "..."
                 : proc.args ?? "No args"
             }
             tooltip={proc.args}
+            onAction={() => {
+              Clipboard.copy(JSON.stringify(proc, null, 2));
+            }}
           />
           {proc.connections.map((conn) => (
             <MenuBarExtra.Item
               key={`${conn.localAddress}:${conn.localPort},${conn.remoteAddress}:${conn.remotePort}`}
               tooltip={JSON.stringify(conn, null, 2)}
               title={formatConnection(conn)}
+              onAction={() => {
+                Clipboard.copy(formatConnection(conn));
+              }}
             />
           ))}
         </MenuBarExtra.Submenu>
@@ -175,7 +182,7 @@ const formatConnection = (connection: Connection): string => {
     remote = `${connection.remoteAddress}:${connection.remotePort}`;
   }
   if (local && remote) {
-    return `${local} -> ${remote}`;
+    return `${local} → ${remote}`;
   }
 
   return remote ?? local ?? "";
