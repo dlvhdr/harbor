@@ -1,16 +1,23 @@
 import { useEffect, useState, useMemo } from "react";
-import { Icon, MenuBarExtra, Clipboard, Color } from "@raycast/api";
-import { execLsof, formatConnection, formatTitle, Process } from "./utils";
+import { Icon, MenuBarExtra, Clipboard, Color, Cache } from "@raycast/api";
+import { execLsof, formatConnection, formatShortCmdArgs, formatTitle, Process } from "./utils";
+import { kill } from "process";
 
 const CMD_ARGS_MAX_LEN = 40;
 
+const cache = new Cache();
+
 const usePorts = () => {
+  const cachedProcs = cache.get("procs");
   const [isLoading, setIsLoading] = useState(true);
-  const [procs, setProcs] = useState<Process[]>([]);
+  const [procs, setProcs] = useState<Process[]>(cachedProcs ? JSON.parse(cachedProcs) : []);
 
   useEffect(() => {
     execLsof()
-      .then((retProcs) => setProcs(retProcs))
+      .then((retProcs) => {
+        cache.set("procs", JSON.stringify(retProcs));
+        return setProcs(retProcs);
+      })
       .finally(() => {
         setIsLoading(false);
       });
@@ -27,31 +34,49 @@ export default function Command() {
   const title = useMemo(() => {
     return formatTitle(procs);
   }, [procs]);
-  const sortedProcs = useMemo(() => {
-    return [...procs].sort((a) => {
-      if (a.cmd === "node") {
-        return -1;
-      }
-      return 0;
-    });
+  const nodeProcs = useMemo(() => {
+    return procs.filter(p => p.cmd === "node")
+  }, [procs])
+  const otherProcs = useMemo(() => {
+    return procs.filter(p => p.cmd !== "node")
   }, [procs]);
 
   return (
     <MenuBarExtra icon={Icon.Plug} isLoading={isLoading} title={title}>
-      {sortedProcs.map((proc) => (
-        <MenuBarExtra.Submenu key={proc.pid} title={`${proc.cmd} (${proc.pid})`}>
-          <MenuBarExtra.Item
-            icon={{ source: Icon.Terminal, tintColor: Color.Green }}
-            title={
-              proc.args && proc.args.length > CMD_ARGS_MAX_LEN
-                ? proc.args.slice(0, CMD_ARGS_MAX_LEN) + "..."
-                : proc.args ?? "No args"
-            }
-            tooltip={proc.args}
-            onAction={() => {
-              Clipboard.copy(JSON.stringify(proc, null, 2));
-            }}
-          />
+      <MenuBarExtra.Section title="node">
+        {nodeProcs.map(proc => <ProcSubMenu key={proc.pid} proc={proc} />)}
+      </MenuBarExtra.Section>
+      <MenuBarExtra.Section title="others">
+        {otherProcs.map(proc => <ProcSubMenu key={proc.pid} proc={proc} />)}
+      </MenuBarExtra.Section>
+    </MenuBarExtra>
+  );
+}
+
+
+const ProcSubMenu = ({proc}: {proc: Process}) => {
+  return (
+    <MenuBarExtra.Submenu 
+      key={proc.pid} 
+      title={`${proc.cmd === "node" && proc.args ? formatShortCmdArgs(proc.args) : proc.cmd}`}>
+      <MenuBarExtra.Item
+        icon={{ source: Icon.Terminal, tintColor: Color.Green }}
+        title={
+        proc.args && proc.args.length > CMD_ARGS_MAX_LEN
+          ?  "..." + proc.args.slice(proc.args.length - CMD_ARGS_MAX_LEN)
+          : proc.args ?? "No args"
+      }
+        tooltip={proc.args}
+        subtitle={`${proc.pid}`}
+        onAction={() => {
+          Clipboard.copy(JSON.stringify(proc, null, 2));
+        }}
+        />
+      <MenuBarExtra.Section title="Actions">
+        <MenuBarExtra.Item title="Terminate" onAction={() => kill(proc.pid, "SIGTERM")}/>
+      </MenuBarExtra.Section>
+      {proc.connections.length > 0 ? (
+        <MenuBarExtra.Section title="Connections (click to copy)">
           {proc.connections.map((conn, i) => (
             <MenuBarExtra.Item
               key={`${i}_${conn.protocol}_${conn.localAddress}:${conn.localPort},${conn.remoteAddress}:${conn.remotePort}`}
@@ -60,10 +85,10 @@ export default function Command() {
               onAction={() => {
                 Clipboard.copy(formatConnection(conn));
               }}
-            />
+              />
           ))}
-        </MenuBarExtra.Submenu>
-      ))}
-    </MenuBarExtra>
+        </MenuBarExtra.Section>)
+        : null}
+    </MenuBarExtra.Submenu>
   );
 }

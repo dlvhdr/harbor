@@ -125,7 +125,13 @@ export const formatTitle = (procs: Process[]): string => {
   return nodeProcs
     .map((p) => p.connections.flatMap((conn) => conn.remotePort ?? conn.localPort))
     .flat()
-    .filter(port => port !== "443" && port !== "80")
+    .filter((port) => port !== "443" && port !== "80")
     .join(" · ")
     .trim();
+};
+
+const SHORT_CMD_ARGS_LEN = 25;
+
+export const formatShortCmdArgs = (args: string) => {
+  return args.length > SHORT_CMD_ARGS_LEN ? "..." + args.slice(args.length - SHORT_CMD_ARGS_LEN) : args;
 };
