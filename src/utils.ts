@@ -90,7 +90,7 @@ export const execLsof = (): Promise<Process[]> => {
 
         const psOut = execSync(`ps -o command= -p ${proc.pid}`).toString();
         if (psOut) {
-          proc.args = psOut.split("\n")[0];
+          proc.args = psOut.split("\n")[0].trim();
         }
 
         return proc;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Icon, MenuBarExtra, Clipboard, Color } from "@raycast/api";
 import { Connection, execLsof, Process } from "./utils";
 
@@ -24,10 +24,21 @@ const usePorts = () => {
 
 export default function Command() {
   const { procs, isLoading } = usePorts();
+  const title = useMemo(() => {
+    return formatTitle(procs);
+  }, [procs]);
+  const sortedProcs = useMemo(() => {
+    return [...procs].sort((a) => {
+      if (a.cmd === "node") {
+        return -1;
+      }
+      return 0;
+    });
+  }, [procs]);
 
   return (
-    <MenuBarExtra icon={Icon.Plug} isLoading={isLoading} title="3000 · 5000 · 1234">
-      {procs.map((proc) => (
+    <MenuBarExtra icon={Icon.Plug} isLoading={isLoading} title={title}>
+      {sortedProcs.map((proc) => (
         <MenuBarExtra.Submenu key={proc.pid} title={`${proc.cmd} (${proc.pid})`}>
           <MenuBarExtra.Item
             icon={{ source: Icon.Terminal, tintColor: Color.Green }}
@@ -41,9 +52,9 @@ export default function Command() {
               Clipboard.copy(JSON.stringify(proc, null, 2));
             }}
           />
-          {proc.connections.map((conn) => (
+          {proc.connections.map((conn, i) => (
             <MenuBarExtra.Item
-              key={`${conn.localAddress}:${conn.localPort},${conn.remoteAddress}:${conn.remotePort}`}
+              key={`${i}_${conn.protocol}_${conn.localAddress}:${conn.localPort},${conn.remoteAddress}:${conn.remotePort}`}
               tooltip={JSON.stringify(conn, null, 2)}
               title={formatConnection(conn)}
               onAction={() => {
@@ -70,4 +81,13 @@ const formatConnection = (connection: Connection): string => {
   }
 
   return remote ?? local ?? "";
+};
+
+const formatTitle = (procs: Process[]): string => {
+  const nodeProcs = procs
+    .filter((p) => p.cmd === "node")
+    .filter((p) => {
+      return p.args !== "eslint_d" && p.args !== "prettierd";
+    });
+  return nodeProcs.map((p) => p.connections.flatMap((conn) => conn.remotePort ?? conn.localPort)).join(" · ");
 };
