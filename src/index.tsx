@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
-import { Icon, MenuBarExtra, Clipboard, Color, Cache } from "@raycast/api";
-import { execLsof, filteredProcs, formatConnection, formatShortCmdArgs, formatTitle, Process } from "./procs";
+import { Icon, MenuBarExtra, Clipboard, Color, Cache, getPreferenceValues } from "@raycast/api";
+import { execLsof, formatConnection, formatShortCmdArgs, formatTitle, Process } from "./procs";
 import { execSync } from "child_process";
 
 const CMD_ARGS_MAX_LEN = 40;
@@ -29,16 +29,21 @@ const usePorts = () => {
   };
 };
 
+type Preferences = {
+  hideByArgs: string;
+};
+
 export default function Command() {
+  const { hideByArgs } = getPreferenceValues<Preferences>();
   const { procs, isLoading } = usePorts();
   const title = useMemo(() => {
-    return formatTitle(procs);
+    return formatTitle(procs, hideByArgs.split(","));
   }, [procs]);
   const nodeProcs = useMemo(() => {
     return procs
       .filter((p) => p.cmd === "node")
       .slice()
-      .sort((p1) => (p1.args != null && filteredProcs.includes(p1.args) ? 1 : -1));
+      .sort((p1) => (p1.args != null && hideByArgs.includes(p1.args) ? 1 : -1));
   }, [procs]);
   const otherProcs = useMemo(() => {
     return procs.filter((p) => p.cmd !== "node");
@@ -61,11 +66,12 @@ export default function Command() {
 }
 
 const ProcSubMenu = (props: { proc: Process }) => {
+  const { hideByArgs } = getPreferenceValues<Preferences>();
   const { proc } = props;
   return (
     <MenuBarExtra.Submenu
       icon={
-        proc.cmd === "node" && proc.args != null && !filteredProcs.includes(proc.args)
+        proc.cmd === "node" && proc.args != null && !hideByArgs.includes(proc.args)
           ? { source: Icon.Dot, tintColor: Color.Blue }
           : undefined
       }

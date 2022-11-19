@@ -9,13 +9,23 @@
     "Developer Tools"
   ],
   "license": "MIT",
+  "preferences": [
+    {
+      "name": "hideByArgs",
+      "title": "Hide by args",
+      "description": "Don't show commands that contains these args in the collapsed menubar (comma separated list)",
+      "type": "textfield",
+      "required": false,
+      "default": ""
+    }
+  ],
   "commands": [
     {
       "name": "index",
-      "title": "Show ports used by procs",
+      "title": "Show ports used by processes",
       "description": "Show all the proccesses that use a port",
       "mode": "menu-bar",
-      "interval": "1m"
+      "interval": "20s"
     }
   ],
   "dependencies": {
