@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Icon, MenuBarExtra, Clipboard, Color, Cache } from "@raycast/api";
 import { execLsof, filteredProcs, formatConnection, formatShortCmdArgs, formatTitle, Process } from "./procs";
-import { kill } from "process";
+import { execSync } from "child_process";
 
 const CMD_ARGS_MAX_LEN = 40;
 
@@ -44,14 +44,15 @@ export default function Command() {
     return procs.filter((p) => p.cmd !== "node");
   }, [procs]);
 
+  console.debug(procs.map((p) => `${p.pid} ${p.cmd}`));
   return (
     <MenuBarExtra icon={Icon.Plug} isLoading={isLoading} title={title}>
-      <MenuBarExtra.Section title="node">
+      <MenuBarExtra.Section title="Node">
         {nodeProcs.map((proc) => (
           <ProcSubMenu key={proc.pid} proc={proc} />
         ))}
       </MenuBarExtra.Section>
-      <MenuBarExtra.Section title="others">
+      <MenuBarExtra.Section title="Other used ports">
         {otherProcs.map((proc) => (
           <ProcSubMenu key={proc.pid} proc={proc} />
         ))}
@@ -60,10 +61,11 @@ export default function Command() {
   );
 }
 
-const ProcSubMenu = ({ proc }: { proc: Process }) => {
+const ProcSubMenu = (props: { proc: Process }) => {
+  const { proc } = props;
+  console.debug("ProcSubMenu proc", proc);
   return (
     <MenuBarExtra.Submenu
-      key={proc.pid}
       icon={
         proc.cmd === "node" && proc.args != null && !filteredProcs.includes(proc.args)
           ? { source: Icon.Dot, tintColor: Color.Blue }
@@ -79,13 +81,25 @@ const ProcSubMenu = ({ proc }: { proc: Process }) => {
             : proc.args ?? "No args"
         }
         tooltip={proc.args}
-        subtitle={`${proc.pid}`}
         onAction={() => {
           Clipboard.copy(JSON.stringify(proc, null, 2));
         }}
       />
       <MenuBarExtra.Section title="Actions">
-        <MenuBarExtra.Item title="Terminate" onAction={() => kill(proc.pid, "SIGTERM")} />
+        <MenuBarExtra.Item
+          title="Terminate"
+          subtitle={String(proc.pid)}
+          onAction={() => {
+            execSync(`kill ${proc.pid}`, { killSignal: "SIGTERM", timeout: 2000 });
+          }}
+        />
+        <MenuBarExtra.Item
+          title={`Kill`}
+          subtitle={String(proc.pid)}
+          onAction={() => {
+            execSync(`kill -9 ${proc.pid}`, { killSignal: "SIGTERM", timeout: 2000 });
+          }}
+        />
       </MenuBarExtra.Section>
       {proc.connections.length > 0 ? (
         <MenuBarExtra.Section title="Connections (click to copy)">
