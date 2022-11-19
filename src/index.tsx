@@ -44,7 +44,6 @@ export default function Command() {
     return procs.filter((p) => p.cmd !== "node");
   }, [procs]);
 
-  console.debug(procs.map((p) => `${p.pid} ${p.cmd}`));
   return (
     <MenuBarExtra icon={Icon.Plug} isLoading={isLoading} title={title}>
       <MenuBarExtra.Section title="Node">
@@ -63,7 +62,6 @@ export default function Command() {
 
 const ProcSubMenu = (props: { proc: Process }) => {
   const { proc } = props;
-  console.debug("ProcSubMenu proc", proc);
   return (
     <MenuBarExtra.Submenu
       icon={
