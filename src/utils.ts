@@ -100,3 +100,32 @@ export const execLsof = (): Promise<Process[]> => {
     });
   });
 };
+
+export const formatConnection = (connection: Connection): string => {
+  let local, remote;
+  if (connection.localAddress != null) {
+    local = `${connection.localAddress}:${connection.localPort}`;
+  }
+  if (connection.remoteAddress != null) {
+    remote = `${connection.remoteAddress}:${connection.remotePort}`;
+  }
+  if (local && remote) {
+    return `${local} → ${remote}`;
+  }
+
+  return remote ?? local ?? "";
+};
+
+export const formatTitle = (procs: Process[]): string => {
+  const nodeProcs = procs
+    .filter((p) => p.cmd === "node")
+    .filter((p) => {
+      return p.args !== "eslint_d" && p.args !== "prettierd";
+    });
+  return nodeProcs
+    .map((p) => p.connections.flatMap((conn) => conn.remotePort ?? conn.localPort))
+    .flat()
+    .filter(port => port !== "443" && port !== "80")
+    .join(" · ")
+    .trim();
+};
