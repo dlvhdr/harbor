@@ -12,9 +12,10 @@
   "commands": [
     {
       "name": "index",
-      "title": "Show Devservers",
-      "description": "",
-      "mode": "menu-bar"
+      "title": "Show ports used by procs",
+      "description": "Show all the proccesses that use a port",
+      "mode": "menu-bar",
+      "interval": "1m"
     }
   ],
   "dependencies": {
