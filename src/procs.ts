@@ -116,11 +116,13 @@ export const formatConnection = (connection: Connection): string => {
   return remote ?? local ?? "";
 };
 
+export const filteredProcs = ["eslint_d", "prettierd"];
+
 export const formatTitle = (procs: Process[]): string => {
   const nodeProcs = procs
     .filter((p) => p.cmd === "node")
     .filter((p) => {
-      return p.args !== "eslint_d" && p.args !== "prettierd";
+      return p.args != null && !filteredProcs.includes(p.args);
     });
   return nodeProcs
     .map((p) => p.connections.flatMap((conn) => conn.remotePort ?? conn.localPort))

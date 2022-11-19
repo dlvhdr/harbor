@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { Icon, MenuBarExtra, Clipboard, Color, Cache } from "@raycast/api";
-import { execLsof, formatConnection, formatShortCmdArgs, formatTitle, Process } from "./procs";
+import { execLsof, filteredProcs, formatConnection, formatShortCmdArgs, formatTitle, Process } from "./procs";
 import { kill } from "process";
 
 const CMD_ARGS_MAX_LEN = 40;
@@ -35,7 +35,10 @@ export default function Command() {
     return formatTitle(procs);
   }, [procs]);
   const nodeProcs = useMemo(() => {
-    return procs.filter((p) => p.cmd === "node");
+    return procs
+      .filter((p) => p.cmd === "node")
+      .slice()
+      .sort((p1) => (p1.args != null && filteredProcs.includes(p1.args) ? 1 : -1));
   }, [procs]);
   const otherProcs = useMemo(() => {
     return procs.filter((p) => p.cmd !== "node");
@@ -61,6 +64,11 @@ const ProcSubMenu = ({ proc }: { proc: Process }) => {
   return (
     <MenuBarExtra.Submenu
       key={proc.pid}
+      icon={
+        proc.cmd === "node" && proc.args != null && !filteredProcs.includes(proc.args)
+          ? { source: Icon.Dot, tintColor: Color.Blue }
+          : undefined
+      }
       title={`${proc.cmd === "node" && proc.args ? formatShortCmdArgs(proc.args) : proc.cmd}`}
     >
       <MenuBarExtra.Item
