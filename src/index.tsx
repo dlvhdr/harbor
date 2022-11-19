@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { Icon, MenuBarExtra, Clipboard, Color, Cache } from "@raycast/api";
-import { execLsof, formatConnection, formatShortCmdArgs, formatTitle, Process } from "./utils";
+import { execLsof, formatConnection, formatShortCmdArgs, formatTitle, Process } from "./procs";
 import { kill } from "process";
 
 const CMD_ARGS_MAX_LEN = 40;
@@ -35,45 +35,49 @@ export default function Command() {
     return formatTitle(procs);
   }, [procs]);
   const nodeProcs = useMemo(() => {
-    return procs.filter(p => p.cmd === "node")
-  }, [procs])
+    return procs.filter((p) => p.cmd === "node");
+  }, [procs]);
   const otherProcs = useMemo(() => {
-    return procs.filter(p => p.cmd !== "node")
+    return procs.filter((p) => p.cmd !== "node");
   }, [procs]);
 
   return (
     <MenuBarExtra icon={Icon.Plug} isLoading={isLoading} title={title}>
       <MenuBarExtra.Section title="node">
-        {nodeProcs.map(proc => <ProcSubMenu key={proc.pid} proc={proc} />)}
+        {nodeProcs.map((proc) => (
+          <ProcSubMenu key={proc.pid} proc={proc} />
+        ))}
       </MenuBarExtra.Section>
       <MenuBarExtra.Section title="others">
-        {otherProcs.map(proc => <ProcSubMenu key={proc.pid} proc={proc} />)}
+        {otherProcs.map((proc) => (
+          <ProcSubMenu key={proc.pid} proc={proc} />
+        ))}
       </MenuBarExtra.Section>
     </MenuBarExtra>
   );
 }
 
-
-const ProcSubMenu = ({proc}: {proc: Process}) => {
+const ProcSubMenu = ({ proc }: { proc: Process }) => {
   return (
-    <MenuBarExtra.Submenu 
-      key={proc.pid} 
-      title={`${proc.cmd === "node" && proc.args ? formatShortCmdArgs(proc.args) : proc.cmd}`}>
+    <MenuBarExtra.Submenu
+      key={proc.pid}
+      title={`${proc.cmd === "node" && proc.args ? formatShortCmdArgs(proc.args) : proc.cmd}`}
+    >
       <MenuBarExtra.Item
         icon={{ source: Icon.Terminal, tintColor: Color.Green }}
         title={
-        proc.args && proc.args.length > CMD_ARGS_MAX_LEN
-          ?  "..." + proc.args.slice(proc.args.length - CMD_ARGS_MAX_LEN)
-          : proc.args ?? "No args"
-      }
+          proc.args && proc.args.length > CMD_ARGS_MAX_LEN
+            ? "..." + proc.args.slice(proc.args.length - CMD_ARGS_MAX_LEN)
+            : proc.args ?? "No args"
+        }
         tooltip={proc.args}
         subtitle={`${proc.pid}`}
         onAction={() => {
           Clipboard.copy(JSON.stringify(proc, null, 2));
         }}
-        />
+      />
       <MenuBarExtra.Section title="Actions">
-        <MenuBarExtra.Item title="Terminate" onAction={() => kill(proc.pid, "SIGTERM")}/>
+        <MenuBarExtra.Item title="Terminate" onAction={() => kill(proc.pid, "SIGTERM")} />
       </MenuBarExtra.Section>
       {proc.connections.length > 0 ? (
         <MenuBarExtra.Section title="Connections (click to copy)">
@@ -85,10 +89,10 @@ const ProcSubMenu = ({proc}: {proc: Process}) => {
               onAction={() => {
                 Clipboard.copy(formatConnection(conn));
               }}
-              />
+            />
           ))}
-        </MenuBarExtra.Section>)
-        : null}
+        </MenuBarExtra.Section>
+      ) : null}
     </MenuBarExtra.Submenu>
   );
-}
+};
