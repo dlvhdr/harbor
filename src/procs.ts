@@ -1,5 +1,7 @@
 import { exec, execSync } from "child_process";
 
+const MAX_PORT_DIGITS = 5;
+
 export type Connection = {
   protocol: string;
   localAddress: string;
@@ -132,6 +134,15 @@ export const formatTitle = (procs: Process[], ignoreProcsByArgs: string[]): stri
 
 const SHORT_CMD_ARGS_LEN = 25;
 
-export const formatShortCmdArgs = (args: string) => {
-  return args.length > SHORT_CMD_ARGS_LEN ? "..." + args.slice(args.length - SHORT_CMD_ARGS_LEN) : args;
+export const formatShortCmdArgs = (proc: Process): string => {
+  let formattedPorts: string | undefined = undefined;
+
+  const args = proc.args ?? "";
+  if (proc.connections.length > 0) {
+    formattedPorts = `${proc.connections.map((conn) => conn.localPort).join(" ")}`;
+  }
+  const formattedArgs =
+    (args.length ?? 0) > SHORT_CMD_ARGS_LEN ? "..." + args.slice(args.length - SHORT_CMD_ARGS_LEN) : proc.args;
+
+  return [formattedPorts, formattedArgs].filter(Boolean).join(" · ") ?? proc.cmd;
 };

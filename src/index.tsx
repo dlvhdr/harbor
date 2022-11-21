@@ -50,33 +50,27 @@ export default function Command() {
   }, [procs]);
 
   return (
-    <MenuBarExtra icon={Icon.Plug} isLoading={isLoading} title={title}>
+    <MenuBarExtra icon={Icon.Boat} isLoading={isLoading} title={title}>
       <MenuBarExtra.Section title="Node">
         {nodeProcs.map((proc) => (
           <ProcSubMenu key={proc.pid} proc={proc} />
         ))}
       </MenuBarExtra.Section>
-      <MenuBarExtra.Section title="Other used ports">
-        {otherProcs.map((proc) => (
-          <ProcSubMenu key={proc.pid} proc={proc} />
-        ))}
+      <MenuBarExtra.Section>
+        <MenuBarExtra.Submenu title="Other used ports" icon={Icon.Ellipsis}>
+          {otherProcs.map((proc) => (
+            <ProcSubMenu key={proc.pid} proc={proc} />
+          ))}
+        </MenuBarExtra.Submenu>
       </MenuBarExtra.Section>
     </MenuBarExtra>
   );
 }
 
 const ProcSubMenu = (props: { proc: Process }) => {
-  const { hideByArgs } = getPreferenceValues<Preferences>();
   const { proc } = props;
   return (
-    <MenuBarExtra.Submenu
-      icon={
-        proc.cmd === "node" && proc.args != null && !hideByArgs.includes(proc.args)
-          ? { source: Icon.Dot, tintColor: Color.Blue }
-          : undefined
-      }
-      title={`${proc.cmd === "node" && proc.args ? formatShortCmdArgs(proc.args) : proc.cmd}`}
-    >
+    <MenuBarExtra.Submenu title={formatShortCmdArgs(proc)}>
       <MenuBarExtra.Item
         icon={{ source: Icon.Terminal, tintColor: Color.Green }}
         title={
@@ -89,17 +83,15 @@ const ProcSubMenu = (props: { proc: Process }) => {
           Clipboard.copy(JSON.stringify(proc, null, 2));
         }}
       />
-      <MenuBarExtra.Section title="Actions">
+      <MenuBarExtra.Section title={`Actions · pid ${proc.pid}`}>
         <MenuBarExtra.Item
           title="Terminate"
-          subtitle={String(proc.pid)}
           onAction={() => {
             execSync(`kill ${proc.pid}`, { killSignal: "SIGTERM", timeout: 2000 });
           }}
         />
         <MenuBarExtra.Item
           title={`Kill`}
-          subtitle={String(proc.pid)}
           onAction={() => {
             execSync(`kill -9 ${proc.pid}`, { killSignal: "SIGTERM", timeout: 2000 });
           }}
