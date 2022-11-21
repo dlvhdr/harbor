@@ -1,8 +1,8 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "devserver",
-  "title": "Devserver",
-  "description": "Show the status of devservers",
+  "name": "harbor",
+  "title": "Harbor",
+  "description": "See which ports are exposed by processes and act on them",
   "icon": "command-icon.png",
   "author": "dlvhdr",
   "categories": [
@@ -22,10 +22,10 @@
   "commands": [
     {
       "name": "index",
-      "title": "Show ports used by processes",
-      "description": "Show all the proccesses that use a port",
+      "title": "Watch Ports",
+      "description": "See which ports are exposed by processes and act on them",
       "mode": "menu-bar",
-      "interval": "20s"
+      "interval": "10s"
     }
   ],
   "dependencies": {
