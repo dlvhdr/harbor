@@ -1,8 +1,8 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "harbor",
-  "title": "Harbor",
-  "description": "See which ports are exposed by processes and act on them",
+  "title": "Harbor - Dev Ports Viewer",
+  "description": "See which ports are exposed by your development processes and act on them",
   "icon": "command-icon.png",
   "author": "dlvhdr",
   "categories": [
@@ -22,8 +22,9 @@
   "commands": [
     {
       "name": "index",
+      "icon": "command-icon.png",
       "title": "Watch Ports",
-      "description": "See which ports are exposed by processes and act on them",
+      "description": "See which ports are exposed by your development processes and act on them",
       "mode": "menu-bar",
       "interval": "10s"
     }

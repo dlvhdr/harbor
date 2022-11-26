@@ -48,7 +48,7 @@ export const getCmdDisplayInfo = (proc: Process): { label: string; icon?: Image 
     }
   }
 
-  const icon = getIconForCmdArgs(args);
+  const icon = proc.cmd === "node" ? { source: "node-js-32.png", tintColor: Color.Green } : getIconForCmdArgs(args);
 
   const formattedArgs = truncate(normalizePath(args));
 
