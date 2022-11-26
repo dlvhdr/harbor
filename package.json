@@ -6,7 +6,9 @@
   "icon": "command-icon.png",
   "author": "dlvhdr",
   "categories": [
-    "Developer Tools"
+    "Developer Tools",
+    "Web",
+    "Productivity"
   ],
   "license": "MIT",
   "preferences": [

@@ -67,7 +67,9 @@ export const useLsof = (): {
   revalidate: () => void;
   isLoading: boolean;
 } => {
-  const { isLoading, data, revalidate } = useExec("/usr/sbin/lsof", ["-i", "-Pn", "-F", "cPnpLT"]);
+  const { isLoading, data, revalidate } = useExec("/usr/sbin/lsof", ["-i", "-Pn", "-F", "cPnpLT"], {
+    keepPreviousData: false,
+  });
   const cached = cache.get("procs");
   const [outProcs, setOutProcs] = useState<Process[]>(cached ? JSON.parse(cached) : []);
 
@@ -102,17 +104,11 @@ export const useLsof = (): {
         return proc;
       });
       const args = await getAllArgs(procs.map((p) => p.pid));
-      const pwds = await getAllPwd(
-        procs
-          .filter((proc) => proc.connections.some((conn) => conn.localPort != null && conn.remotePort == null))
-          .map((p) => p.pid)
-      );
       procs.forEach((proc) => {
-        proc.cwd = pwds[proc.pid];
         proc.args = args[proc.pid];
       });
-      setOutProcs(procs);
       cache.set("procs", JSON.stringify(procs));
+      setOutProcs(procs);
     }
     getProcs();
   }, [data]);
@@ -123,6 +119,34 @@ export const useLsof = (): {
     procs: outProcs,
     wow: "",
   };
+};
+
+export const getCwd = async (pid: number): Promise<string> => {
+  try {
+    const lsof = execa("/usr/sbin/lsof", ["-p", String(pid), "-F", "n"], {
+      timeout: 1000,
+      killSignal: "SIGKILL",
+    });
+    const { stdout } = await lsof;
+    const rows = stdout.split("\n");
+    let foundPid: string | undefined = undefined;
+    let cwd = "";
+    rows.forEach((row, i) => {
+      if (row.startsWith("p")) {
+        foundPid = row.slice(1);
+      }
+      if (row !== "fcwd") {
+        return;
+      }
+      if (foundPid) {
+        cwd = rows[i + 1].slice(1);
+      }
+    });
+    return cwd;
+  } catch (e) {
+    console.error("error", e);
+  }
+  return "";
 };
 
 const getAllArgs = async (pids: number[]): Promise<{ [pid: string]: string | undefined }> => {
@@ -138,32 +162,6 @@ const getAllArgs = async (pids: number[]): Promise<{ [pid: string]: string | und
     procsArgs[pid] = command.trim() === "" ? undefined : command;
   });
   return procsArgs;
-};
-
-const getAllPwd = async (pids: number[]): Promise<{ [pid: string]: string }> => {
-  try {
-    const { stdout } = await execa("/usr/sbin/lsof", ["-p", pids.join(","), "-F", "n"], {
-      timeout: 1000,
-    });
-    const rows = stdout.split("\n");
-    const cwds: { [pid: string]: string } = {};
-    let pid: string | undefined = undefined;
-    rows.forEach((row, i) => {
-      if (row.startsWith("p")) {
-        pid = row.slice(1);
-      }
-      if (row !== "fcwd") {
-        return;
-      }
-      if (pid) {
-        cwds[pid] = rows[i + 1].slice(1);
-      }
-    });
-    return cwds;
-  } catch (e) {
-    console.error("error", e);
-  }
-  return {};
 };
 
 export const useProcSections = (
