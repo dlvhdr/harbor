@@ -1,33 +1,10 @@
-import { useEffect, useState, useMemo } from "react";
-import { Icon, MenuBarExtra, Clipboard, Color, Cache, getPreferenceValues } from "@raycast/api";
-import { execLsof, formatConnection, formatShortCmdArgs, formatTitle, Process } from "./procs";
+import { useMemo } from "react";
+import { MenuBarExtra, Clipboard, Color, getPreferenceValues, Icon } from "@raycast/api";
+import { useLsof, Process } from "./procs";
 import { execSync } from "child_process";
+import { formatConnection, formatTitle, getCmdDisplayInfo } from "./formatters";
 
 const CMD_ARGS_MAX_LEN = 40;
-
-const cache = new Cache();
-
-const usePorts = () => {
-  const cachedProcs = cache.get("procs");
-  const [isLoading, setIsLoading] = useState(true);
-  const [procs, setProcs] = useState<Process[]>(cachedProcs ? JSON.parse(cachedProcs) : []);
-
-  useEffect(() => {
-    execLsof()
-      .then((retProcs) => {
-        cache.set("procs", JSON.stringify(retProcs));
-        return setProcs(retProcs);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  }, []);
-
-  return {
-    procs,
-    isLoading,
-  };
-};
 
 type Preferences = {
   hideByArgs: string;
@@ -35,7 +12,7 @@ type Preferences = {
 
 export default function Command() {
   const { hideByArgs } = getPreferenceValues<Preferences>();
-  const { procs, isLoading } = usePorts();
+  const { procs, isLoading } = useLsof();
   const title = useMemo(() => {
     return formatTitle(procs, hideByArgs.split(","));
   }, [procs]);
@@ -69,8 +46,9 @@ export default function Command() {
 
 const ProcSubMenu = (props: { proc: Process }) => {
   const { proc } = props;
+  const displayInfo = getCmdDisplayInfo(proc);
   return (
-    <MenuBarExtra.Submenu title={formatShortCmdArgs(proc)}>
+    <MenuBarExtra.Submenu title={displayInfo.label} icon={displayInfo.icon}>
       <MenuBarExtra.Item
         icon={{ source: Icon.Terminal, tintColor: Color.Green }}
         title={
