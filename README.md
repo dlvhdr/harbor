@@ -1,6 +1,7 @@
 # Harbor 🚢
 
 A [Raycast](https://www.raycast.com/) extension.
+
 See which ports are exposed by your devlopment processes and act on them.
 
 ![SCR-20221126-ma0](https://user-images.githubusercontent.com/6196971/204099882-673e939f-9c48-4a28-8dea-eb192e0f5f75.png)
