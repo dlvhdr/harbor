@@ -1,5 +1,8 @@
+import os from "os";
 import { Icon } from "@raycast/api";
 import { Connection, Process } from "./procs";
+
+const LABEL_MAX_CHARS = 35;
 
 export const formatConnection = (connection: Connection): string => {
   let local, remote;
@@ -30,8 +33,6 @@ export const formatTitle = (procs: Process[], ignoreProcsByArgs: string[]): stri
     .trim();
 };
 
-const SHORT_CMD_ARGS_LEN = 25;
-
 export const getCmdDisplayInfo = (proc: Process): { label: string; icon?: Icon } => {
   let formattedPorts: string | undefined = undefined;
 
@@ -46,26 +47,9 @@ export const getCmdDisplayInfo = (proc: Process): { label: string; icon?: Icon }
 
   const icon = getIconForCmdArgs(args);
 
-  const formattedArgs =
-    (args.length ?? 0) > SHORT_CMD_ARGS_LEN
-      ? args.slice(0, 10) + "..." + args.slice(args.length - SHORT_CMD_ARGS_LEN)
-      : proc.args;
-  let formattedCwd: string | undefined = undefined;
-  if (proc.cwd) {
-    if (proc.pid === 24663) {
-      console.log(proc.cmd, proc.pid, proc.cwd);
-    }
-    const cwd = proc.cwd;
-    formattedCwd =
-      (cwd.length ?? 0) > SHORT_CMD_ARGS_LEN
-        ? cwd.slice(0, 10) + "..." + cwd.slice(cwd.length - SHORT_CMD_ARGS_LEN)
-        : cwd;
-  }
+  const formattedArgs = truncate(normalizePath(args));
 
-  const label = [formattedPorts, formattedArgs, formattedCwd].filter(Boolean).join(" · ") ?? proc.cmd;
-  if (proc.pid === 61791) {
-    console.log("label", label, proc.cwd);
-  }
+  const label = [formattedPorts, formattedArgs].filter(Boolean).join(" · ") ?? proc.cmd;
   return {
     label,
     icon: icon,
@@ -90,4 +74,24 @@ const getIconForCmdArgs = (args: string): Icon | undefined => {
     args = args.slice(appsPrefix.length);
   }
   return icon;
+};
+
+export const truncate = (label: string) => {
+  const trimmed = label.trim();
+  if (trimmed.length <= LABEL_MAX_CHARS) {
+    return trimmed;
+  }
+
+  const numHiddenEdgeChars = (trimmed.length - LABEL_MAX_CHARS - 1) / 2;
+  if (numHiddenEdgeChars <= 0) {
+    return trimmed;
+  }
+
+  const start = trimmed.length / 2;
+  return trimmed.slice(0, start - numHiddenEdgeChars) + "..." + trimmed.slice(start + numHiddenEdgeChars);
+};
+
+export const normalizePath = (path: string) => {
+  const homedir = os.homedir();
+  return path.startsWith(homedir) ? path.replace(homedir, "~") : path;
 };

@@ -2,9 +2,7 @@ import { useMemo } from "react";
 import { MenuBarExtra, Clipboard, Color, getPreferenceValues, Icon } from "@raycast/api";
 import { useLsof, Process } from "./procs";
 import { execSync } from "child_process";
-import { formatConnection, formatTitle, getCmdDisplayInfo } from "./formatters";
-
-const CMD_ARGS_MAX_LEN = 40;
+import { formatConnection, formatTitle, getCmdDisplayInfo, truncate } from "./formatters";
 
 type Preferences = {
   hideByArgs: string;
@@ -49,18 +47,34 @@ const ProcSubMenu = (props: { proc: Process }) => {
   const displayInfo = getCmdDisplayInfo(proc);
   return (
     <MenuBarExtra.Submenu title={displayInfo.label} icon={displayInfo.icon}>
-      <MenuBarExtra.Item
-        icon={{ source: Icon.Terminal, tintColor: Color.Green }}
-        title={
-          proc.args && proc.args.length > CMD_ARGS_MAX_LEN
-            ? "..." + proc.args.slice(proc.args.length - CMD_ARGS_MAX_LEN)
-            : proc.args ?? "No args"
-        }
-        tooltip={proc.args}
-        onAction={() => {
-          Clipboard.copy(JSON.stringify(proc, null, 2));
-        }}
-      />
+      <MenuBarExtra.Section title="Command">
+        <MenuBarExtra.Item
+          icon={{ source: Icon.Terminal, tintColor: Color.Green }}
+          title={proc.args ? truncate(proc.args) : "No args"}
+          tooltip={proc.args}
+          onAction={
+            proc.args
+              ? () => {
+                  Clipboard.copy(proc.args ?? "");
+                }
+              : undefined
+          }
+        />
+      </MenuBarExtra.Section>
+      <MenuBarExtra.Section title="Working directory">
+        <MenuBarExtra.Item
+          icon={{ source: Icon.Folder, tintColor: Color.Green }}
+          title={proc.cwd ? truncate(proc.cwd) : "No cwd"}
+          tooltip={proc.cwd}
+          onAction={
+            proc.cwd
+              ? () => {
+                  Clipboard.copy(proc.cwd ?? "");
+                }
+              : undefined
+          }
+        />
+      </MenuBarExtra.Section>
       <MenuBarExtra.Section title={`Actions · pid ${proc.pid}`}>
         <MenuBarExtra.Item
           title="Terminate"
@@ -69,9 +83,9 @@ const ProcSubMenu = (props: { proc: Process }) => {
           }}
         />
         <MenuBarExtra.Item
-          title={`Kill`}
+          title="Kill"
           onAction={() => {
-            execSync(`kill -9 ${proc.pid}`, { killSignal: "SIGTERM", timeout: 2000 });
+            execSync(`kill -9 ${proc.pid}`, { killSignal: "SIGKILL", timeout: 2000 });
           }}
         />
       </MenuBarExtra.Section>
