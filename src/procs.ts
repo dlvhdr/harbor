@@ -1,13 +1,14 @@
-import { exec, execSync } from "child_process";
-
-const MAX_PORT_DIGITS = 5;
+import { useExec } from "@raycast/utils";
+import { execa } from "execa";
+import { useEffect, useState } from "react";
+import { Cache } from "@raycast/api";
 
 export type Connection = {
   protocol: string;
   localAddress: string;
-  remoteAddress: string;
+  remoteAddress?: string;
   localPort: string;
-  remotePort: string;
+  remotePort?: string;
 };
 
 export type Process = {
@@ -15,6 +16,7 @@ export type Process = {
   cmd: string;
   user: string;
   args?: string;
+  cwd?: string;
   connections: Connection[];
 };
 
@@ -56,21 +58,29 @@ const parseConnectionString = (connectionString: string): Connection => {
   return connection;
 };
 
-export const execLsof = (): Promise<Process[]> => {
-  return new Promise<Process[]>((resolve, reject) => {
-    exec("lsof -i -Pn -F cPnpLT", { env: { PATH: "/usr/sbin" } }, (error, stdout) => {
-      if (error) {
-        reject(error);
+const cache = new Cache();
+
+export const useLsof = (): {
+  wow: string | undefined;
+  procs: Process[];
+  revalidate: () => void;
+  isLoading: boolean;
+} => {
+  const { isLoading, data, revalidate } = useExec("/usr/sbin/lsof", ["-i", "-Pn", "-F", "cPnpLT"]);
+  const cached = cache.get("procs");
+  const [outProcs, setOutProcs] = useState<Process[]>(cached ? JSON.parse(cached) : []);
+
+  useEffect(() => {
+    async function getProcs() {
+      if (!data) {
         return;
       }
-      const separated = stdout.split("\np");
-
-      const procs = separated.map((p, i) => {
+      const separated = data.toString().split("\np");
+      const procs = separated?.map((p, i) => {
         const procSplit = p.split("\nf");
 
         const processInfo = procSplit[0].split("\n");
         if (i == 0) {
-          // remove first character from the first line in processInfo if we're on index 0
           processInfo[0] = processInfo[0].slice(1);
         }
         const pid = Number(processInfo[0]);
@@ -82,67 +92,75 @@ export const execLsof = (): Promise<Process[]> => {
           user,
           connections: [],
         };
-
         procSplit.slice(1).map((connectionString) => {
           const connection = parseConnectionString(connectionString);
           if (connection.localAddress != null || connection.remoteAddress != null) {
             proc.connections = [...proc.connections, connection];
           }
         });
-
-        const psOut = execSync(`ps -o command= -p ${proc.pid}`).toString();
-        if (psOut) {
-          proc.args = psOut.split("\n")[0].trim();
-        }
-
         return proc;
       });
+      const args = await getAllArgs(procs.map((p) => p.pid));
+      const pwds = await getAllPwd(
+        procs
+          .filter((proc) => proc.connections.some((conn) => conn.localPort != null && conn.remotePort == null))
+          .map((p) => p.pid)
+      );
+      procs.forEach((proc) => {
+        proc.cwd = pwds[proc.pid];
+        proc.args = args[proc.pid];
+      });
+      setOutProcs(procs);
+      cache.set("procs", JSON.stringify(procs));
+    }
+    getProcs();
+  }, [data]);
 
-      resolve(procs);
-    });
+  return {
+    isLoading: isLoading,
+    revalidate,
+    procs: outProcs,
+    wow: "",
+  };
+};
+
+const getAllArgs = async (pids: number[]): Promise<{ [pid: string]: string | undefined }> => {
+  const procsArgs: { [pid: string]: string | undefined } = {};
+  const { stdout: psOut } = await execa("ps", ["-o", "pid=", "-o", "command=", "-p", pids.join(",")]);
+  psOut.split("\n").map((args) => {
+    const split = args.trimStart().split(" ", 2);
+    if (split.length < 2) {
+      return;
+    }
+    const [pid, command] = split;
+    procsArgs[pid] = command.trim() === "" ? undefined : command;
   });
+  return procsArgs;
 };
 
-export const formatConnection = (connection: Connection): string => {
-  let local, remote;
-  if (connection.localAddress != null) {
-    local = `${connection.localAddress}:${connection.localPort}`;
-  }
-  if (connection.remoteAddress != null) {
-    remote = `${connection.remoteAddress}:${connection.remotePort}`;
-  }
-  if (local && remote) {
-    return `${local} → ${remote}`;
-  }
-
-  return remote ?? local ?? "";
-};
-
-export const formatTitle = (procs: Process[], ignoreProcsByArgs: string[]): string => {
-  const nodeProcs = procs
-    .filter((p) => p.cmd === "node")
-    .filter((p) => {
-      return p.args != null && !ignoreProcsByArgs.includes(p.args);
+const getAllPwd = async (pids: number[]): Promise<{ [pid: string]: string }> => {
+  console.log("getting", pids.join(","));
+  try {
+    const { stdout } = await execa("/usr/sbin/lsof", ["-p", pids.join(","), "-F", "n"], {
+      timeout: 1000,
     });
-  return nodeProcs
-    .map((p) => p.connections.flatMap((conn) => conn.remotePort ?? conn.localPort))
-    .flat()
-    .filter((port) => port !== "443" && port !== "80")
-    .join(" · ")
-    .trim();
-};
-
-const SHORT_CMD_ARGS_LEN = 25;
-
-export const formatShortCmdArgs = (proc: Process): string => {
-  let formattedPorts: string | undefined = undefined;
-
-  const args = proc.args ?? "";
-  if (proc.connections.length > 0) {
-    formattedPorts = `${proc.connections.map((conn) => conn.localPort).join(" ")}`;
+    const rows = stdout.split("\n");
+    const cwds: { [pid: string]: string } = {};
+    let pid: string | undefined = undefined;
+    rows.forEach((row, i) => {
+      if (row.startsWith("p")) {
+        pid = row.slice(1);
+      }
+      if (row !== "fcwd") {
+        return;
+      }
+      if (pid) {
+        cwds[pid] = rows[i + 1].slice(1);
+      }
+    });
+    return cwds;
+  } catch (e) {
+    console.error("error", e);
   }
-  const formattedArgs =
-    (args.length ?? 0) > SHORT_CMD_ARGS_LEN ? "..." + args.slice(args.length - SHORT_CMD_ARGS_LEN) : proc.args;
-
-  return [formattedPorts, formattedArgs].filter(Boolean).join(" · ") ?? proc.cmd;
+  return {};
 };
