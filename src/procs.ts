@@ -128,7 +128,8 @@ const getAllArgs = async (pids: number[]): Promise<{ [pid: string]: string | und
   const procsArgs: { [pid: string]: string | undefined } = {};
   const { stdout: psOut } = await execa("ps", ["-o", "pid=", "-o", "command=", "-p", pids.join(",")]);
   psOut.split("\n").map((args) => {
-    const split = args.trimStart().split(" ", 2);
+    const firstSpaceIdx = args.trimStart().indexOf(" ");
+    const split = [args.trimStart().slice(0, firstSpaceIdx), args.trimStart().slice(firstSpaceIdx + 1)];
     if (split.length < 2) {
       return;
     }
@@ -139,7 +140,6 @@ const getAllArgs = async (pids: number[]): Promise<{ [pid: string]: string | und
 };
 
 const getAllPwd = async (pids: number[]): Promise<{ [pid: string]: string }> => {
-  console.log("getting", pids.join(","));
   try {
     const { stdout } = await execa("/usr/sbin/lsof", ["-p", pids.join(","), "-F", "n"], {
       timeout: 1000,
