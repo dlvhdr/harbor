@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { MenuBarExtra, Clipboard, Color, getPreferenceValues, Icon } from "@raycast/api";
-import { useLsof, Process, useProcSections } from "./procs";
+import { useLsof, Process, useProcSections, getCwd } from "./procs";
 import { execSync } from "child_process";
 import { formatConnection, formatTitle, getCmdDisplayInfo, truncate } from "./formatters";
 
@@ -42,8 +42,10 @@ export default function Command() {
   );
 }
 
-const ProcSubMenu = (props: { proc: Process }) => {
-  const { proc } = props;
+const ProcSubMenu = ({ proc }: { proc: Process }) => {
+  const copyCwd = useCallback(async () => {
+    Clipboard.copy(await getCwd(proc.pid));
+  }, [proc.pid]);
   const displayInfo = getCmdDisplayInfo(proc);
   return (
     <MenuBarExtra.Submenu title={displayInfo.label} icon={displayInfo.icon}>
@@ -61,20 +63,7 @@ const ProcSubMenu = (props: { proc: Process }) => {
           }
         />
       </MenuBarExtra.Section>
-      <MenuBarExtra.Section title="Working directory">
-        <MenuBarExtra.Item
-          icon={{ source: Icon.Folder, tintColor: Color.Green }}
-          title={proc.cwd ? truncate(proc.cwd) : "No cwd"}
-          tooltip={proc.cwd}
-          onAction={
-            proc.cwd
-              ? () => {
-                  Clipboard.copy(proc.cwd ?? "");
-                }
-              : undefined
-          }
-        />
-      </MenuBarExtra.Section>
+      <MenuBarExtra.Item icon={{ source: Icon.Folder, tintColor: Color.Green }} title="Copy cwd" onAction={copyCwd} />
       <MenuBarExtra.Section title={`Actions · pid ${proc.pid}`}>
         <MenuBarExtra.Item
           title="Terminate"
