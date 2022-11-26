@@ -1,5 +1,5 @@
 import os from "os";
-import { Icon } from "@raycast/api";
+import { Color, Icon, Image } from "@raycast/api";
 import { Connection, Process } from "./procs";
 
 const LABEL_MAX_CHARS = 35;
@@ -20,9 +20,7 @@ export const formatConnection = (connection: Connection): string => {
 };
 
 export const formatTitle = (procs: Process[], ignoreProcsByArgs: string[]): string => {
-  const nodeProcs = procs.filter((p) => {
-    return p.cmd === "node" && p.args != null && !ignoreProcsByArgs.includes(p.args);
-  });
+  const nodeProcs = procs.filter((p) => shouldHideProc(p, ignoreProcsByArgs));
   return nodeProcs
     .map((p) => p.connections)
     .flat()
@@ -33,12 +31,17 @@ export const formatTitle = (procs: Process[], ignoreProcsByArgs: string[]): stri
     .trim();
 };
 
-export const getCmdDisplayInfo = (proc: Process): { label: string; icon?: Icon } => {
+export const getCmdDisplayInfo = (proc: Process): { label: string; icon?: Image } => {
   let formattedPorts: string | undefined = undefined;
 
   const args = proc.args ?? "";
   if (proc.connections.length > 0) {
-    const ports = new Set(proc.connections.map((conn) => conn.localPort));
+    const ports = new Set(
+      proc.connections
+        .filter(onlyLocalPorts)
+        .map((conn) => conn.localPort)
+        .filter(Boolean)
+    );
     formattedPorts = [...ports.values()][0];
     if (ports.size > 1) {
       formattedPorts += ` (${ports.size - 1} more)`;
@@ -56,8 +59,8 @@ export const getCmdDisplayInfo = (proc: Process): { label: string; icon?: Icon }
   };
 };
 
-const getIconForCmdArgs = (args: string): Icon | undefined => {
-  let icon: Icon | undefined = undefined;
+const getIconForCmdArgs = (args: string): Image | undefined => {
+  let icon: Icon = Icon.CloudLightning;
 
   const systemPrefix = "/System";
   const systemAppsPrefix = "/System/Applications";
@@ -73,7 +76,7 @@ const getIconForCmdArgs = (args: string): Icon | undefined => {
     icon = Icon.AppWindow;
     args = args.slice(appsPrefix.length);
   }
-  return icon;
+  return { source: icon, tintColor: Color.Green };
 };
 
 export const truncate = (label: string) => {
@@ -94,4 +97,12 @@ export const truncate = (label: string) => {
 export const normalizePath = (path: string) => {
   const homedir = os.homedir();
   return path.startsWith(homedir) ? path.replace(homedir, "~") : path;
+};
+
+export const shouldHideProc = (proc: Process, ignoreProcsByArgs: string[]): boolean => {
+  return proc.cmd === "node" && proc.args != null && !ignoreProcsByArgs.includes(proc.args.trim());
+};
+
+export const onlyLocalPorts = (connection: Connection): boolean => {
+  return connection.localAddress === "127.0.0.1";
 };
