@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { MenuBarExtra, Clipboard, Color, getPreferenceValues, Icon } from "@raycast/api";
-import { useLsof, Process } from "./procs";
+import { useLsof, Process, useProcSections } from "./procs";
 import { execSync } from "child_process";
-import { formatConnection, formatTitle, getCmdDisplayInfo, onlyLocalPorts, truncate } from "./formatters";
+import { formatConnection, formatTitle, getCmdDisplayInfo, truncate } from "./formatters";
 
 type Preferences = {
   hideByArgs: string;
@@ -14,35 +14,14 @@ export default function Command() {
   const title = useMemo(() => {
     return formatTitle(procs, hideByArgs.split(","));
   }, [procs]);
-  const nodeProcs = useMemo(() => {
-    return procs.filter((p) => p.cmd === "node" && (p.args == null || !hideByArgs.includes(p.args.trim())));
-  }, [procs]);
-  const hiddenNodeProcs = useMemo(() => {
-    return procs.filter((p) => p.cmd === "node" && p.args != null && hideByArgs.includes(p.args.trim()));
-  }, [procs]);
-
-  const otherLocalProcs = useMemo(() => {
-    return procs.filter((p) => p.cmd !== "node" && p.connections.length > 0 && p.connections.some(onlyLocalPorts));
-  }, [procs]);
-  const otherExternalProcs = useMemo(() => {
-    return procs.filter(
-      (p) => p.cmd !== "node" && p.connections.length > 0 && p.connections.every((conn) => !onlyLocalPorts(conn))
-    );
-  }, [procs]);
+  const { shownNodeProcs, hiddenNodeProcs, otherLocalProcs, otherExternalProcs } = useProcSections(procs);
 
   return (
     <MenuBarExtra icon={Icon.Boat} isLoading={isLoading} title={title}>
-      <MenuBarExtra.Section title="Node">
-        {nodeProcs.map((proc) => (
-          <ProcSubMenu key={proc.pid} proc={proc} />
-        ))}
-      </MenuBarExtra.Section>
+      {shownNodeProcs.map((proc) => (
+        <ProcSubMenu key={proc.pid} proc={proc} />
+      ))}
       <MenuBarExtra.Section>
-        <MenuBarExtra.Submenu title="Hidden" icon={Icon.Ellipsis}>
-          {hiddenNodeProcs.map((proc) => (
-            <ProcSubMenu key={proc.pid} proc={proc} />
-          ))}
-        </MenuBarExtra.Submenu>
         <MenuBarExtra.Submenu title="Other ports exposed locally" icon={Icon.Ellipsis}>
           {otherLocalProcs.map((proc) => (
             <ProcSubMenu key={proc.pid} proc={proc} />
@@ -50,6 +29,11 @@ export default function Command() {
         </MenuBarExtra.Submenu>
         <MenuBarExtra.Submenu title="Other ports exposed externally" icon={Icon.Ellipsis}>
           {otherExternalProcs.map((proc) => (
+            <ProcSubMenu key={proc.pid} proc={proc} />
+          ))}
+        </MenuBarExtra.Submenu>
+        <MenuBarExtra.Submenu title="Hidden" icon={Icon.Ellipsis}>
+          {hiddenNodeProcs.map((proc) => (
             <ProcSubMenu key={proc.pid} proc={proc} />
           ))}
         </MenuBarExtra.Submenu>
@@ -62,7 +46,7 @@ const ProcSubMenu = (props: { proc: Process }) => {
   const { proc } = props;
   const displayInfo = getCmdDisplayInfo(proc);
   return (
-    <MenuBarExtra.Submenu title={displayInfo.label} icon={proc.cmd === "node" ? undefined : displayInfo.icon}>
+    <MenuBarExtra.Submenu title={displayInfo.label} icon={displayInfo.icon}>
       <MenuBarExtra.Section title="Command">
         <MenuBarExtra.Item
           icon={{ source: Icon.Terminal, tintColor: Color.Green }}

@@ -1,7 +1,8 @@
 import { useExec } from "@raycast/utils";
 import { execa } from "execa";
-import { useEffect, useState } from "react";
-import { Cache } from "@raycast/api";
+import { useEffect, useMemo, useState } from "react";
+import { Cache, getPreferenceValues } from "@raycast/api";
+import { onlyLocalPorts } from "./formatters";
 
 export type Connection = {
   protocol: string;
@@ -163,4 +164,38 @@ const getAllPwd = async (pids: number[]): Promise<{ [pid: string]: string }> => 
     console.error("error", e);
   }
   return {};
+};
+
+export const useProcSections = (
+  procs: Process[]
+): {
+  shownNodeProcs: Process[];
+  hiddenNodeProcs: Process[];
+  otherLocalProcs: Process[];
+  otherExternalProcs: Process[];
+} => {
+  const { hideByArgs } = getPreferenceValues<{ hideByArgs: string }>();
+
+  const allNodeProcs = useMemo(() => procs.filter((p) => p.cmd === "node"), [procs]);
+  const shownNodeProcs = useMemo(() => {
+    return allNodeProcs.filter((p) => p.args == null || !hideByArgs.includes(p.args.trim()));
+  }, [allNodeProcs]);
+  const hiddenNodeProcs = useMemo(() => {
+    return allNodeProcs.filter((p) => p.args != null && hideByArgs.includes(p.args.trim()));
+  }, [allNodeProcs]);
+
+  const otherProcs = useMemo(() => procs.filter((p) => p.cmd !== "node"), [procs]);
+  const otherLocalProcs = useMemo(() => {
+    return otherProcs.filter((p) => p.connections.length > 0 && p.connections.some(onlyLocalPorts));
+  }, [otherProcs]);
+  const otherExternalProcs = useMemo(() => {
+    return otherProcs.filter((p) => p.connections.length > 0 && p.connections.every((conn) => !onlyLocalPorts(conn)));
+  }, [otherProcs]);
+
+  return {
+    shownNodeProcs,
+    hiddenNodeProcs,
+    otherLocalProcs,
+    otherExternalProcs,
+  };
 };
